@@ -11,6 +11,23 @@ func canonize(src string) string {
 	return replacer.Replace(src)
 }
 
+// checkCycles check that canonized source code does not contain unclosed cycles (single "[" or "]" operators)
+func checkCycles(src string) error {
+	var err error = nil
+
+	cycleOpenCount := strings.Count(src, "[")
+	cycleCloseCount := strings.Count(src, "]")
+	if cycleOpenCount != cycleCloseCount {
+		value := "["
+		if cycleOpenCount < cycleCloseCount {
+			value = "]"
+		}
+		err = UnexpectedTokenError{value}
+	}
+
+	return err
+}
+
 // explode transforms canonized source code to characters slice
 func explode(src string) []string {
 	return strings.Split(src, "")
@@ -52,6 +69,13 @@ func operatorsToCommands(operators []string) ([]runtime.Command, error) {
 
 // Parse returns
 func Parse(src string) (runtime.Program, error) {
-	operators, err := operatorsToCommands(explode(canonize(src)))
+	canonized := canonize(src)
+
+	err := checkCycles(canonized)
+	if err != nil {
+		return make([]runtime.Command, 0), err
+	}
+
+	operators, err := operatorsToCommands(explode(canonized))
 	return operators, err
 }
